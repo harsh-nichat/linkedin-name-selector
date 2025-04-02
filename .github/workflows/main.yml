@@ -1,0 +1,66 @@
+name: Scrape LinkedIn Username Selector
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Puppeteer
+        run: npm install puppeteer
+
+      - name: Scrape LinkedIn Profile
+        id: scrape_step
+        run: |
+          node -e "
+          const puppeteer = require('puppeteer');
+          (async () => {
+            const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+            const page = await browser.newPage();
+            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124 Safari/537.36');
+            try {
+              await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'domcontentloaded', timeout: 30000 });
+              const selector = await page.evaluate(() => {
+                const nameElement = document.querySelector('h1') || 
+                              document.querySelector('.text-heading-xlarge');
+                if (!nameElement) return 'Selector not found';
+                const classList = nameElement.className.split(' ').map(cls => '.' + cls).join('');
+                return classList || 'No classes found';
+              });
+              console.log('Latest selector:', selector);
+              process.env.SELECTOR = selector;
+            } catch (error) {
+              console.log('Error:', error.message);
+              process.env.SELECTOR = 'Failed to scrape - possible CAPTCHA or block';
+            }
+            await browser.close();
+          })();
+          " >> output.log 2>&1
+          echo "SELECTOR=$(cat output.log | grep 'Latest selector:' | sed 's/Latest selector: //')" >> $GITHUB_ENV
+
+      - name: Send Selector to App
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"selector\": \"${{ env.SELECTOR }}\"}" \
+            YOUR_APP_ENDPOINT
+
+      - name: Commit result
+        run: |
+          echo "$(date -u) - Selector: ${{ env.SELECTOR }}" >> result.txt
+          git config user.name 'GitHub Action'
+          git config user.email 'action@github.com'
+          git add result.txt output.log
+          git commit -m "Update selector - $(date -u)" || echo "No changes to commit"
+          git push
