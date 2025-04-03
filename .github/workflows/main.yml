@@ -23,6 +23,8 @@ jobs:
       - name: Scrape LinkedIn Profile
         id: scrape_step
         run: |
+          # Ensure output.log is created even if empty
+          touch output.log
           node -e "
           const puppeteer = require('puppeteer');
           (async () => {
@@ -50,26 +52,40 @@ jobs:
                 const classList = nameElement.className.split(' ').map(cls => '.' + cls).join('');
                 return classList || 'No classes found';
               });
-              console.log('Latest selector:', selector);
+              console.log('Latest selector:', selector); // Ensure this logs
               process.env.SELECTOR = selector;
             } catch (error) {
-              console.log('Error:', error.message);
+              console.log('Error:', error.message); // Ensure errors are logged
               process.env.SELECTOR = 'Failed to scrape - possible CAPTCHA or block: ' + error.message;
             }
             await browser.close();
           })();
           " >> output.log 2>&1
-          echo "SELECTOR=$(cat output.log | grep 'Latest selector:' | sed 's/Latest selector: //')" >> $GITHUB_ENV
+          # Extract selector and handle case where it might not be found
+          SELECTOR_VALUE=$(cat output.log | grep 'Latest selector:' | sed 's/Latest selector: //')
+          if [ -z "$SELECTOR_VALUE" ]; then
+            echo "No selector found in output.log, checking for error"
+            SELECTOR_VALUE=$(cat output.log | grep 'Error:' | sed 's/Error: //')
+            if [ -z "$SELECTOR_VALUE" ]; then
+              SELECTOR_VALUE="No data or error logged"
+            fi
+          fi
+          echo "SELECTOR=$SELECTOR_VALUE" >> $GITHUB_ENV
+          echo "Debug: SELECTOR set to $SELECTOR_VALUE" >> output.log
 
       - name: Send Selector to App
         run: |
           curl -X POST \
             -H "Content-Type: application/json" \
             -d "{\"selector\": \"${{ env.SELECTOR }}\"}" \
-            YOUR_APP_ENDPOINT
+            ${{ secrets.APP_ENDPOINT }}
+        continue-on-error: true # Allow workflow to continue even if this fails
 
       - name: Commit result
         run: |
+          # Ensure files exist
+          touch output.log
+          touch result.txt
           echo "$(date -u) - Selector: ${{ env.SELECTOR }}" >> result.txt
           git config user.name 'GitHub Action'
           git config user.email 'action@github.com'
