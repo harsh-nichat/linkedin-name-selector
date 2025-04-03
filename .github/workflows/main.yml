@@ -28,12 +28,24 @@ jobs:
           (async () => {
             const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
-            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124 Safari/537.36');
+            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36');
             try {
-              await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'domcontentloaded', timeout: 30000 });
+              await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'domcontentloaded', timeout: 60000 });
+              await page.waitForTimeout(2000); // Wait for page to settle
+
+              // Check for and dismiss the sign-in modal
+              const dismissButtonSelector = 'button[data-tracking-control-name=\"public_profile_contextual-sign-in-modal_modal_dismiss\"]';
+              const modalExists = await page.evaluate((selector) => !!document.querySelector(selector), dismissButtonSelector);
+              if (modalExists) {
+                await page.click(dismissButtonSelector);
+                await page.waitForTimeout(1000); // Wait for modal to close
+              }
+
+              // Scrape the name's CSS selector
               const selector = await page.evaluate(() => {
                 const nameElement = document.querySelector('h1') || 
-                              document.querySelector('.text-heading-xlarge');
+                              document.querySelector('.text-heading-xlarge') ||
+                              document.querySelector('[data-test-id=\"profile-header-name\"]');
                 if (!nameElement) return 'Selector not found';
                 const classList = nameElement.className.split(' ').map(cls => '.' + cls).join('');
                 return classList || 'No classes found';
@@ -42,7 +54,7 @@ jobs:
               process.env.SELECTOR = selector;
             } catch (error) {
               console.log('Error:', error.message);
-              process.env.SELECTOR = 'Failed to scrape - possible CAPTCHA or block';
+              process.env.SELECTOR = 'Failed to scrape - possible CAPTCHA or block: ' + error.message;
             }
             await browser.close();
           })();
