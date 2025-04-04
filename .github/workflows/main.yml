@@ -20,7 +20,10 @@ jobs:
           node-version: '18'
 
       - name: Install Puppeteer
-        run: npm install puppeteer@latest # Install the latest version of Puppeteer
+        run: npm install puppeteer@latest
+
+      - name: Log Puppeteer Version
+        run: node -e "console.log('Puppeteer version:', require('puppeteer').version())" >> output.log 2>&1
 
       - name: Scrape LinkedIn Profile
         id: scrape_step
@@ -29,20 +32,22 @@ jobs:
           touch output.log
           node -e "
           const puppeteer = require('puppeteer');
+          // Custom delay function
+          const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
           (async () => {
             const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
             await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36');
             try {
               await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'domcontentloaded', timeout: 60000 });
-              await page.waitForTimeout(2000); // Wait for page to settle
+              await delay(2000); // Wait for page to settle
 
               // Check for and dismiss the sign-in modal
               const dismissButtonSelector = 'button[data-tracking-control-name=\"public_profile_contextual-sign-in-modal_modal_dismiss\"]';
               const modalExists = await page.evaluate((selector) => !!document.querySelector(selector), dismissButtonSelector);
               if (modalExists) {
                 await page.click(dismissButtonSelector);
-                await page.waitForTimeout(1000); // Wait for modal to close
+                await delay(1000); // Wait for modal to close
               }
 
               // Scrape the name's CSS selector
