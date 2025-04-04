@@ -1,24 +1,26 @@
+name: Scrape LinkedIn Username Selector
+
 on:
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *' # Runs daily at midnight UTC
+    - cron: '0 0 * * *'
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # Use latest checkout action
+        uses: actions/checkout@v3
         with:
-          token: ${{ secrets.REPO_TOKEN }} # Token needed to push changes
+          token: ${{ secrets.REPO_TOKEN }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4 # Use latest setup-node action
+        uses: actions/setup-node@v3
         with:
           node-version: '18'
 
       - name: Install Puppeteer
-        run: npm install puppeteer@latest # Use the latest stable version
+        run: npm install puppeteer@latest
 
       - name: Log Puppeteer Version
         run: |
@@ -28,106 +30,100 @@ jobs:
       - name: Scrape LinkedIn Profile
         id: scrape_step
         run: |
+          # Ensure output.log is created even if empty
           touch output.log
-
           node -e "
           const puppeteer = require('puppeteer');
-          const fs = require('fs');
           const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
           (async () => {
-            const browser = await puppeteer.launch({
-              headless: 'new',
-              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--window-size=1920,1080']
-            });
+            const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
-            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)...');
+            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
             await page.setExtraHTTPHeaders({
               'Accept-Language': 'en-US,en;q=0.9',
-              'Accept': 'text/html,...'
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
             });
-            await page.setViewport({ width: 1920, height: 1080 });
-
-            let finalSelector = 'Selector not found';
-
             try {
-              await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'networkidle2', timeout: 90000 });
-              await delay(3000);
+              await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'domcontentloaded', timeout: 60000 });
+              await delay(2000);
 
+              // Log the page title for debugging
+              const pageTitle = await page.title();
+              console.log('Page title:', pageTitle);
+
+              // Log a snippet of the HTML for debugging
+              const pageContent = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
+              console.log('Page content snippet:', pageContent);
+
+              // Check for and dismiss the sign-in modal
               const dismissButtonSelector = 'button[data-tracking-control-name=\"public_profile_contextual-sign-in-modal_modal_dismiss\"]';
-              const authwallTitleSelector = '.authwall-join-form__title';
-
-              const isOnAuthwall = await page.$(authwallTitleSelector) !== null;
-              if (isOnAuthwall) {
-                  await page.waitForSelector(dismissButtonSelector, { visible: true, timeout: 10000 });
-                  await page.click(dismissButtonSelector);
-                  await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
-                  await delay(5000);
+              try {
+                await page.waitForSelector(dismissButtonSelector, { timeout: 5000 });
+                console.log('Dismiss button found, clicking...');
+                await page.click(dismissButtonSelector);
+                await delay(3000); // Wait longer for the profile page to load
+              } catch (error) {
+                console.log('Dismiss button not found or click failed:', error.message);
               }
 
-              finalSelector = await page.evaluate(() => {
-                const topCardH1 = document.querySelector('.pv-top-card--list h1, .pv-top-card h1, section.pv-top-card h1');
-                if (topCardH1 && topCardH1.textContent.trim().length > 0) {
-                  return topCardH1.className ? '.' + topCardH1.className.trim().split(' ').join('.') : 'h1 (no class)';
-                }
+              // Log the page title again after dismissing the modal
+              const pageTitleAfterDismiss = await page.title();
+              console.log('Page title after dismiss:', pageTitleAfterDismiss);
 
-                const h1s = Array.from(document.querySelectorAll('h1'));
-                const nameH1 = h1s.find(el => el.textContent.includes('Satya Nadella'));
-                if (nameH1) {
-                  return nameH1.className ? '.' + nameH1.className.trim().split(' ').join('.') : 'h1 (no class)';
-                }
+              // Log a snippet of the HTML again for debugging
+              const pageContentAfterDismiss = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
+              console.log('Page content snippet after dismiss:', pageContentAfterDismiss);
 
-                const genericH1 = document.querySelector('.text-heading-xlarge, h1.top-card-layout--title');
-                if (genericH1) {
-                   return genericH1.className ? '.' + genericH1.className.trim().split(' ').join('.') : 'h1 (no class)';
-                }
-
-                return 'Could not find name element H1';
+              // Scrape the name's CSS selector
+              const selector = await page.evaluate(() => {
+                const nameElement = document.querySelector('h1[class=\"fcvdtLCCLqHKzBmnEEKRFrlgNaDyIzA\"]') ||
+                                   Array.from(document.querySelectorAll('h1')).find(el => el.textContent.includes('Satya Nadella')) ||
+                                   document.querySelector('.pv-top-card--list h1') ||
+                                   document.querySelector('.text-heading-xlarge') ||
+                                   document.querySelector('[data-test-id=\"profile-header-name\"]');
+                if (!nameElement) return 'Selector not found';
+                const classList = nameElement.className.split(' ').map(cls => '.' + cls).join('');
+                return classList || 'No classes found';
               });
-
+              console.log('Latest selector:', selector);
+              process.env.SELECTOR = selector;
             } catch (error) {
-              const pageContentOnError = await page.content();
-              fs.appendFileSync('output.log', '\\n--- Page Content On Error ---\\n' + pageContentOnError.substring(0, 2000) + '\\n--- End Content ---\\n');
-              finalSelector = 'Scraping failed: ' + error.message;
-            } finally {
-              await browser.close();
+              console.log('Error:', error.message);
+              process.env.SELECTOR = 'Failed to scrape - possible CAPTCHA or block: ' + error.message;
             }
-
-            fs.writeFileSync(process.env.GITHUB_ENV, `SCRAPED_SELECTOR=${finalSelector}\\n`, { flag: 'a' });
-
-          })().catch(err => {
-             fs.writeFileSync(process.env.GITHUB_ENV, `SCRAPED_SELECTOR=Unhandled script error: ${err.message}\\n`, { flag: 'a' });
-            process.exit(1);
-          });
+            await browser.close();
+          })();
           " >> output.log 2>&1
+          # Extract selector and handle case where it might not be found
+          SELECTOR_VALUE=$(cat output.log | grep 'Latest selector:' | sed 's/Latest selector: //')
+          if [ -z "$SELECTOR_VALUE" ]; then
+            echo "No selector found in output.log, checking for error"
+            SELECTOR_VALUE=$(cat output.log | grep 'Error:' | sed 's/Error: //')
+            if [ -z "$SELECTOR_VALUE" ]; then
+              SELECTOR_VALUE="No data or error logged"
+            fi
+          fi
+          # Sanitize SELECTOR_VALUE: remove spaces and special characters
+          SANITIZED_SELECTOR=$(echo "$SELECTOR_VALUE" | tr -d '[:space:]' | sed 's/[^a-zA-Z0-9.-]/-/g')
+          echo "SELECTOR=$SANITIZED_SELECTOR" >> $GITHUB_ENV
+          echo "Debug: SELECTOR set to $SANITIZED_SELECTOR" >> output.log
 
-          echo "--- GITHUB_ENV Content ---" >> output.log
-          cat $GITHUB_ENV >> output.log
-          echo "--- End GITHUB_ENV Content ---" >> output.log
-
-          EXTRACTED_SELECTOR=$(grep '^SCRAPED_SELECTOR=' $GITHUB_ENV | cut -d'=' -f2-)
-          echo "Debug: Extracted SELECTOR for commit log: $EXTRACTED_SELECTOR" >> output.log
-
-      - name: Send Selector to App (Optional)
-        if: secrets.APP_ENDPOINT != ''
+      - name: Send Selector to App
         run: |
-          echo "Sending selector to endpoint: ${{ secrets.APP_ENDPOINT }}"
-          JSON_PAYLOAD=$(jq -n --arg selector "$SCRAPED_SELECTOR" '{selector: $selector}')
-          echo "Payload: $JSON_PAYLOAD" >> output.log
-          curl -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" ${{ secrets.APP_ENDPOINT }} || echo "Failed to send selector to app" >> output.log
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"selector\": \"${{ env.SELECTOR }}\"}" \
+            ${{ secrets.APP_ENDPOINT }}
         continue-on-error: true
 
       - name: Commit result
         run: |
-          touch result.txt output.log
-          echo "$(date -u) - Selector: ${{ env.SCRAPED_SELECTOR }}" >> result.txt
-          git config user.name 'GitHub Action Bot'
-          git config user.email 'github-actions-bot@users.noreply.github.com'
+          # Ensure files exist
+          touch output.log
+          touch result.txt
+          echo "$(date -u) - Selector: ${{ env.SELECTOR }}" >> result.txt
+          git config user.name 'GitHub Action'
+          git config user.email 'action@github.com'
           git add result.txt output.log
-          if git diff --staged --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "Update selector - $(date -u)"
-            git push
-          fi
-        continue-on-error: true
+          git commit -m "Update selector - $(date -u)" || echo "No changes to commit"
+          git push
