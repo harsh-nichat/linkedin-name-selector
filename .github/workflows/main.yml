@@ -1,5 +1,3 @@
-name: Scrape LinkedIn Username Selector
-
 on:
   workflow_dispatch: # Allows manual triggering
   schedule:
@@ -23,198 +21,113 @@ jobs:
         run: npm install puppeteer@latest # Use the latest stable version
 
       - name: Log Puppeteer Version
-        # Log the installed version for debugging
         run: |
           npm list puppeteer --depth=0 >> output.log 2>&1 || echo "Failed to log Puppeteer version" >> output.log
-        continue-on-error: true # Don't fail the workflow if logging fails
+        continue-on-error: true
 
       - name: Scrape LinkedIn Profile
         id: scrape_step
         run: |
-          # Ensure output.log exists
           touch output.log
 
-          # Run the Puppeteer script, redirecting all console output to output.log
           node -e "
           const puppeteer = require('puppeteer');
-          const fs = require('fs'); // Import fs for logging
-
-          // Helper function for adding delays
+          const fs = require('fs');
           const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
           (async () => {
-            console.log('Launching browser...');
             const browser = await puppeteer.launch({
-              headless: 'new', // Use new headless mode
-              args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage', // Recommended for CI environments
-                '--disable-gpu', // Often helpful in headless environments
-                '--window-size=1920,1080' // Set a larger viewport
-              ]
+              headless: 'new',
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--window-size=1920,1080']
             });
             const page = await browser.newPage();
-
-            // Set User Agent and Headers
-            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'); // Updated UA
+            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)...');
             await page.setExtraHTTPHeaders({
               'Accept-Language': 'en-US,en;q=0.9',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8', // Updated Accept header
-              'Sec-Fetch-Site': 'none',
-              'Sec-Fetch-Mode': 'navigate',
-              'Sec-Fetch-User': '?1',
-              'Sec-Fetch-Dest': 'document',
+              'Accept': 'text/html,...'
             });
-            // Set a realistic viewport
             await page.setViewport({ width: 1920, height: 1080 });
 
-            let finalSelector = 'Selector not found'; // Default value
+            let finalSelector = 'Selector not found';
 
             try {
-              console.log('Navigating to page...');
-              // Increased timeout and wait until network is idle for potentially complex pages
               await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'networkidle2', timeout: 90000 });
-              console.log('Navigation complete. Waiting for potential modal...');
-              await delay(3000); // Initial wait for page elements to settle
+              await delay(3000);
 
-              // --- Improved Modal Dismissal ---
               const dismissButtonSelector = 'button[data-tracking-control-name=\"public_profile_contextual-sign-in-modal_modal_dismiss\"]';
-              const authwallTitleSelector = '.authwall-join-form__title'; // Selector for the authwall title
+              const authwallTitleSelector = '.authwall-join-form__title';
 
-              try {
-                // Check if we are on the authwall page first
-                const isOnAuthwall = await page.$(authwallTitleSelector) !== null;
-                if (isOnAuthwall) {
-                    console.log('Authwall detected. Trying to find and click dismiss button...');
-                    // Wait specifically for the button to be visible and clickable
-                    await page.waitForSelector(dismissButtonSelector, { visible: true, timeout: 10000 });
-                    console.log('Dismiss button found, attempting click...');
-                    await page.click(dismissButtonSelector);
-                    console.log('Dismiss button clicked. Waiting for profile page to load...');
-                    // Wait for navigation or a known element on the profile page
-                    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => console.log('No navigation after click, maybe modal closed inline.'));
-                    await delay(5000); // Extra wait after potential navigation or modal close
-                } else {
-                    console.log('Authwall/Modal not detected initially.');
-                }
-              } catch (error) {
-                console.log(`Dismiss button not found or click failed: ${error.message}. Proceeding without dismissal.`);
-                // Log page content if dismiss fails to see what's visible
-                const pageContent = await page.content();
-                fs.appendFileSync('output.log', '\\n--- Page Content After Failed Dismiss ---\\n' + pageContent.substring(0, 2000) + '\\n--- End Content ---\\n');
+              const isOnAuthwall = await page.$(authwallTitleSelector) !== null;
+              if (isOnAuthwall) {
+                  await page.waitForSelector(dismissButtonSelector, { visible: true, timeout: 10000 });
+                  await page.click(dismissButtonSelector);
+                  await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
+                  await delay(5000);
               }
 
-              // --- Debugging Logs ---
-              const pageTitleAfterAttempt = await page.title();
-              console.log('Page title after dismiss attempt:', pageTitleAfterAttempt);
-              const pageContentAfterAttempt = await page.evaluate(() => document.body.innerText.substring(0, 500)); // Use innerText for cleaner log
-              console.log('Page content snippet after dismiss attempt:', pageContentAfterAttempt.replace(/\\n/g, ' ')); // Replace newlines for readability
-
-              // --- Robust Selector Logic ---
-              console.log('Attempting to scrape the name element selector...');
               finalSelector = await page.evaluate(() => {
-                // Strategy 1: Look for H1 within the main profile content area (often has 'pv-top-card')
                 const topCardH1 = document.querySelector('.pv-top-card--list h1, .pv-top-card h1, section.pv-top-card h1');
                 if (topCardH1 && topCardH1.textContent.trim().length > 0) {
-                  console.log('Found H1 inside a top-card element.');
-                  // Return a relatively stable selector if possible, otherwise the dynamic classes
                   return topCardH1.className ? '.' + topCardH1.className.trim().split(' ').join('.') : 'h1 (no class)';
                 }
 
-                // Strategy 2: Find H1 containing the known name (less robust if name changes, but good fallback)
-                // Use XPath for text contains, requires converting NodeList to Array
                 const h1s = Array.from(document.querySelectorAll('h1'));
                 const nameH1 = h1s.find(el => el.textContent.includes('Satya Nadella'));
                 if (nameH1) {
-                  console.log('Found H1 based on text content.');
                   return nameH1.className ? '.' + nameH1.className.trim().split(' ').join('.') : 'h1 (no class)';
                 }
 
-                // Strategy 3: Fallback to common heading selectors (less specific)
-                const genericH1 = document.querySelector('.text-heading-xlarge, h1.top-card-layout--title'); // Add known authwall class here as last resort check
-                 if (genericH1) {
-                   console.log('Found H1 using generic selectors.');
+                const genericH1 = document.querySelector('.text-heading-xlarge, h1.top-card-layout--title');
+                if (genericH1) {
                    return genericH1.className ? '.' + genericH1.className.trim().split(' ').join('.') : 'h1 (no class)';
-                 }
+                }
 
-                return 'Could not find name element H1'; // Final fallback
+                return 'Could not find name element H1';
               });
 
-              console.log('Raw selector found:', finalSelector);
-
             } catch (error) {
-              console.error('Error during scraping:', error.message);
-              // Log more details on error
               const pageContentOnError = await page.content();
               fs.appendFileSync('output.log', '\\n--- Page Content On Error ---\\n' + pageContentOnError.substring(0, 2000) + '\\n--- End Content ---\\n');
               finalSelector = 'Scraping failed: ' + error.message;
             } finally {
-              console.log('Closing browser...');
               await browser.close();
             }
 
-            // Output the found selector for the next step
-            // Use environment file for potentially complex selectors
-            console.log(`Final selector determined: ${finalSelector}`);
-            // Write to GITHUB_ENV - Ensure the variable name matches the one used later
             fs.writeFileSync(process.env.GITHUB_ENV, `SCRAPED_SELECTOR=${finalSelector}\\n`, { flag: 'a' });
 
           })().catch(err => {
-            console.error('Unhandled error in async function:', err);
-            // Ensure GITHUB_ENV is updated even on top-level failure
              fs.writeFileSync(process.env.GITHUB_ENV, `SCRAPED_SELECTOR=Unhandled script error: ${err.message}\\n`, { flag: 'a' });
-            process.exit(1); // Exit with error code
+            process.exit(1);
           });
           " >> output.log 2>&1
 
-          # Debug: Log the content of GITHUB_ENV to see what was written
           echo "--- GITHUB_ENV Content ---" >> output.log
           cat $GITHUB_ENV >> output.log
           echo "--- End GITHUB_ENV Content ---" >> output.log
 
-          # Extract the selector from the environment file for logging/committing
-          # Use the correct variable name SCRAPED_SELECTOR
           EXTRACTED_SELECTOR=$(grep '^SCRAPED_SELECTOR=' $GITHUB_ENV | cut -d'=' -f2-)
           echo "Debug: Extracted SELECTOR for commit log: $EXTRACTED_SELECTOR" >> output.log
 
-
       - name: Send Selector to App (Optional)
-        # This step depends on your app's endpoint existing
         if: secrets.APP_ENDPOINT != ''
         run: |
           echo "Sending selector to endpoint: ${{ secrets.APP_ENDPOINT }}"
-          # Ensure the selector is properly JSON escaped
           JSON_PAYLOAD=$(jq -n --arg selector "$SCRAPED_SELECTOR" '{selector: $selector}')
           echo "Payload: $JSON_PAYLOAD" >> output.log
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" \
-            ${{ secrets.APP_ENDPOINT }} || echo "Failed to send selector to app" >> output.log
-        # Use continue-on-error if sending failure shouldn't stop the workflow
+          curl -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" ${{ secrets.APP_ENDPOINT }} || echo "Failed to send selector to app" >> output.log
         continue-on-error: true
 
       - name: Commit result
         run: |
-          # Ensure files exist
           touch result.txt output.log
-
-          # Get the selector from the environment variable set by the script
-          # Use the correct variable name SCRAPED_SELECTOR
           echo "$(date -u) - Selector: ${{ env.SCRAPED_SELECTOR }}" >> result.txt
-
-          # Configure Git
           git config user.name 'GitHub Action Bot'
-          git config user.email 'github-actions-bot@users.noreply.github.com' # Use standard no-reply email
-
-          # Add and commit changes
+          git config user.email 'github-actions-bot@users.noreply.github.com'
           git add result.txt output.log
-          # Check for changes before committing
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else
             git commit -m "Update selector - $(date -u)"
             git push
           fi
-        # Handle potential errors during commit/push
-        continue-on-error: true # Optional: Decide if commit failure should fail the workflow
+        continue-on-error: true
