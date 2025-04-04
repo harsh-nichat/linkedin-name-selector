@@ -38,16 +38,14 @@ jobs:
           (async () => {
             const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
-            // Set a more realistic user agent
             await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-            // Add extra headers to mimic a real browser
             await page.setExtraHTTPHeaders({
               'Accept-Language': 'en-US,en;q=0.9',
               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
             });
             try {
               await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'domcontentloaded', timeout: 60000 });
-              await delay(2000); // Wait for page to settle
+              await delay(2000);
 
               // Log the page title for debugging
               const pageTitle = await page.title();
@@ -62,14 +60,16 @@ jobs:
               const modalExists = await page.evaluate((selector) => !!document.querySelector(selector), dismissButtonSelector);
               if (modalExists) {
                 await page.click(dismissButtonSelector);
-                await delay(1000); // Wait for modal to close
+                await delay(1000);
               }
 
               // Scrape the name's CSS selector
               const selector = await page.evaluate(() => {
-                // Look for an h1 containing 'Satya Nadella'
-                const nameElement = Array.from(document.querySelectorAll('h1')).find(el => el.textContent.includes('Satya Nadella')) ||
-                                   document.querySelector('.pv-top-card--list h1') || // Common LinkedIn profile name container
+                // Look for an element with the specific class
+                const nameElement = document.querySelector('h1[class=\"fcvdtLCCLqHKzBmnEEKRFrlgNaDyIzA\"]') ||
+                                   // Fallback: Look for an h1 containing 'Satya Nadella'
+                                   Array.from(document.querySelectorAll('h1')).find(el => el.textContent.includes('Satya Nadella')) ||
+                                   document.querySelector('.pv-top-card--list h1') ||
                                    document.querySelector('.text-heading-xlarge') ||
                                    document.querySelector('[data-test-id=\"profile-header-name\"]');
                 if (!nameElement) return 'Selector not found';
@@ -94,8 +94,10 @@ jobs:
               SELECTOR_VALUE="No data or error logged"
             fi
           fi
-          echo "SELECTOR=$SELECTOR_VALUE" >> $GITHUB_ENV
-          echo "Debug: SELECTOR set to $SELECTOR_VALUE" >> output.log
+          # Sanitize SELECTOR_VALUE: remove spaces and special characters
+          SANITIZED_SELECTOR=$(echo "$SELECTOR_VALUE" | tr -d '[:space:]' | sed 's/[^a-zA-Z0-9.-]/-/g')
+          echo "SELECTOR=$SANITIZED_SELECTOR" >> $GITHUB_ENV
+          echo "Debug: SELECTOR set to $SANITIZED_SELECTOR" >> output.log
 
       - name: Send Selector to App
         run: |
