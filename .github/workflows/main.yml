@@ -1,33 +1,4 @@
-name: Scrape LinkedIn Username Selector
-
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * *'
-
-jobs:
-  scrape:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.REPO_TOKEN }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install Puppeteer
-        run: npm install puppeteer@latest
-
-      - name: Log Puppeteer Version
-        run: |
-          npm list puppeteer --depth=0 >> output.log 2>&1 || echo "Failed to log Puppeteer version" >> output.log
-        continue-on-error: true
-
-      - name: Scrape LinkedIn Profile
+- name: Scrape LinkedIn Profile
         id: scrape_step
         run: |
           # Ensure output.log is created even if empty
@@ -47,58 +18,65 @@ jobs:
               await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'domcontentloaded', timeout: 60000 });
               await delay(2000);
 
-              // Log the page title for debugging
-              const pageTitle = await page.title();
-              console.log('Page title:', pageTitle);
+              // Log initial page title and content for debugging
+              console.log('Initial Page title:', await page.title());
+              console.log('Initial Page content snippet:', await page.evaluate(() => document.body.innerHTML.substring(0, 500)));
 
-              // Log a snippet of the HTML for debugging
-              const pageContent = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
-              console.log('Page content snippet:', pageContent);
-
-              // Check for and dismiss the sign-in modal
+              // Check for and dismiss the sign-in modal - Improved logic
               const dismissButtonSelector = 'button[data-tracking-control-name=\"public_profile_contextual-sign-in-modal_modal_dismiss\"]';
               try {
-                await page.waitForSelector(dismissButtonSelector, { timeout: 5000 });
+                await page.waitForSelector(dismissButtonSelector, { timeout: 10000 }); // Increased timeout
                 console.log('Dismiss button found, clicking...');
                 await page.click(dismissButtonSelector);
-                await delay(3000); // Wait longer for the profile page to load
+                await delay(5000); // Increased wait time after clicking
+                console.log('Dismiss button clicked, waiting for profile to load...');
               } catch (error) {
                 console.log('Dismiss button not found or click failed:', error.message);
               }
 
-              // Log the page title again after dismissing the modal
-              const pageTitleAfterDismiss = await page.title();
-              console.log('Page title after dismiss:', pageTitleAfterDismiss);
+              // Log page title and content after modal dismissal attempt
+              console.log('Page title after dismiss attempt:', await page.title());
+              console.log('Page content snippet after dismiss attempt:', await page.evaluate(() => document.body.innerHTML.substring(0, 500)));
 
-              // Log a snippet of the HTML again for debugging
-              const pageContentAfterDismiss = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
-              console.log('Page content snippet after dismiss:', pageContentAfterDismiss);
+              // Scrape the name's CSS selector - More specific selectors
+              let selector = 'Selector not found';
+              const possibleSelectors = [
+                'h1[class*="text-heading-xlarge"]', // More general selector
+                'h1[class*="pv-top-card"]',      // Another common pattern
+                '[data-test-id="profile-header-name"]' // Data attribute
+              ];
 
-              // Scrape the name's CSS selector
-              const selector = await page.evaluate(() => {
-                const nameElement = document.querySelector('h1[class=\"fcvdtLCCLqHKzBmnEEKRFrlgNaDyIzA\"]') ||
-                                   Array.from(document.querySelectorAll('h1')).find(el => el.textContent.includes('Satya Nadella')) ||
-                                   document.querySelector('.pv-top-card--list h1') ||
-                                   document.querySelector('.text-heading-xlarge') ||
-                                   document.querySelector('[data-test-id=\"profile-header-name\"]');
-                if (!nameElement) return 'Selector not found';
-                const classList = nameElement.className.split(' ').map(cls => '.' + cls).join('');
-                return classList || 'No classes found';
-              });
+              for (const sel of possibleSelectors) {
+                try {
+                  await page.waitForSelector(sel, { timeout: 5000 });
+                  const nameElement = await page.$(sel);
+                  if (nameElement) {
+                    const className = await nameElement.evaluate(el => el.className);
+                    selector = className.split(' ').map(cls => '.' + cls).join('');
+                    console.log('Found name element with selector:', selector);
+                    break; // Exit the loop once a selector is found
+                  }
+                } catch (error) {
+                  console.log(`Selector '${sel}' not found:`, error.message);
+                }
+              }
+
               console.log('Latest selector:', selector);
               process.env.SELECTOR = selector;
+
             } catch (error) {
-              console.log('Error:', error.message);
+              console.error('Error during scraping:', error.message);
               process.env.SELECTOR = 'Failed to scrape - possible CAPTCHA or block: ' + error.message;
+            } finally {
+              await browser.close();
             }
-            await browser.close();
           })();
           " >> output.log 2>&1
           # Extract selector and handle case where it might not be found
           SELECTOR_VALUE=$(cat output.log | grep 'Latest selector:' | sed 's/Latest selector: //')
           if [ -z "$SELECTOR_VALUE" ]; then
             echo "No selector found in output.log, checking for error"
-            SELECTOR_VALUE=$(cat output.log | grep 'Error:' | sed 's/Error: //')
+            SELECTOR_VALUE=$(cat output.log | grep 'Error during scraping:' | sed 's/Error during scraping: //')
             if [ -z "$SELECTOR_VALUE" ]; then
               SELECTOR_VALUE="No data or error logged"
             fi
@@ -107,23 +85,3 @@ jobs:
           SANITIZED_SELECTOR=$(echo "$SELECTOR_VALUE" | tr -d '[:space:]' | sed 's/[^a-zA-Z0-9.-]/-/g')
           echo "SELECTOR=$SANITIZED_SELECTOR" >> $GITHUB_ENV
           echo "Debug: SELECTOR set to $SANITIZED_SELECTOR" >> output.log
-
-      - name: Send Selector to App
-        run: |
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -d "{\"selector\": \"${{ env.SELECTOR }}\"}" \
-            ${{ secrets.APP_ENDPOINT }}
-        continue-on-error: true
-
-      - name: Commit result
-        run: |
-          # Ensure files exist
-          touch output.log
-          touch result.txt
-          echo "$(date -u) - Selector: ${{ env.SELECTOR }}" >> result.txt
-          git config user.name 'GitHub Action'
-          git config user.email 'action@github.com'
-          git add result.txt output.log
-          git commit -m "Update selector - $(date -u)" || echo "No changes to commit"
-          git push
