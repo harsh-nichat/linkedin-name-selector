@@ -57,17 +57,26 @@ jobs:
 
               // Check for and dismiss the sign-in modal
               const dismissButtonSelector = 'button[data-tracking-control-name=\"public_profile_contextual-sign-in-modal_modal_dismiss\"]';
-              const modalExists = await page.evaluate((selector) => !!document.querySelector(selector), dismissButtonSelector);
-              if (modalExists) {
+              try {
+                await page.waitForSelector(dismissButtonSelector, { timeout: 5000 });
+                console.log('Dismiss button found, clicking...');
                 await page.click(dismissButtonSelector);
-                await delay(1000);
+                await delay(3000); // Wait longer for the profile page to load
+              } catch (error) {
+                console.log('Dismiss button not found or click failed:', error.message);
               }
+
+              // Log the page title again after dismissing the modal
+              const pageTitleAfterDismiss = await page.title();
+              console.log('Page title after dismiss:', pageTitleAfterDismiss);
+
+              // Log a snippet of the HTML again for debugging
+              const pageContentAfterDismiss = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
+              console.log('Page content snippet after dismiss:', pageContentAfterDismiss);
 
               // Scrape the name's CSS selector
               const selector = await page.evaluate(() => {
-                // Look for an element with the specific class
                 const nameElement = document.querySelector('h1[class=\"fcvdtLCCLqHKzBmnEEKRFrlgNaDyIzA\"]') ||
-                                   // Fallback: Look for an h1 containing 'Satya Nadella'
                                    Array.from(document.querySelectorAll('h1')).find(el => el.textContent.includes('Satya Nadella')) ||
                                    document.querySelector('.pv-top-card--list h1') ||
                                    document.querySelector('.text-heading-xlarge') ||
