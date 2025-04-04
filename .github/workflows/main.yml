@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.REPO_TOKEN }} # Use the token for authentication
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
