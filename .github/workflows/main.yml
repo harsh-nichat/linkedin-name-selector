@@ -12,7 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.REPO_TOKEN }} # Use the token for authentication
+          token: ${{ secrets.REPO_TOKEN }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -20,7 +20,7 @@ jobs:
           node-version: '18'
 
       - name: Install Puppeteer
-        run: npm install puppeteer
+        run: npm install puppeteer@latest # Install the latest version of Puppeteer
 
       - name: Scrape LinkedIn Profile
         id: scrape_step
@@ -54,10 +54,10 @@ jobs:
                 const classList = nameElement.className.split(' ').map(cls => '.' + cls).join('');
                 return classList || 'No classes found';
               });
-              console.log('Latest selector:', selector); // Ensure this logs
+              console.log('Latest selector:', selector);
               process.env.SELECTOR = selector;
             } catch (error) {
-              console.log('Error:', error.message); // Ensure errors are logged
+              console.log('Error:', error.message);
               process.env.SELECTOR = 'Failed to scrape - possible CAPTCHA or block: ' + error.message;
             }
             await browser.close();
@@ -81,7 +81,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"selector\": \"${{ env.SELECTOR }}\"}" \
             ${{ secrets.APP_ENDPOINT }}
-        continue-on-error: true # Allow workflow to continue even if this fails
+        continue-on-error: true
 
       - name: Commit result
         run: |
