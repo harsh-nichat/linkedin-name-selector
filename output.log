@@ -1,2 +1,7 @@
 Error: page.waitForTimeout is not a function
 Debug: SELECTOR set to page.waitForTimeout is not a function
+linkedin-name-selector@ /home/runner/work/linkedin-name-selector/linkedin-name-selector
+└── puppeteer@24.6.0
+
+Latest selector: .authwall-join-form__title
+Debug: SELECTOR set to .authwall-join-form__title
