@@ -24,9 +24,8 @@ jobs:
 
       - name: Log Puppeteer Version
         run: |
-          # Log the installed Puppeteer version using npm list
           npm list puppeteer --depth=0 >> output.log 2>&1 || echo "Failed to log Puppeteer version" >> output.log
-        continue-on-error: true # Allow the workflow to continue even if this step fails
+        continue-on-error: true
 
       - name: Scrape LinkedIn Profile
         id: scrape_step
@@ -35,15 +34,28 @@ jobs:
           touch output.log
           node -e "
           const puppeteer = require('puppeteer');
-          // Custom delay function
           const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
           (async () => {
             const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
-            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36');
+            // Set a more realistic user agent
+            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+            // Add extra headers to mimic a real browser
+            await page.setExtraHTTPHeaders({
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+            });
             try {
               await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'domcontentloaded', timeout: 60000 });
               await delay(2000); // Wait for page to settle
+
+              // Log the page title for debugging
+              const pageTitle = await page.title();
+              console.log('Page title:', pageTitle);
+
+              // Log a snippet of the HTML for debugging
+              const pageContent = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
+              console.log('Page content snippet:', pageContent);
 
               // Check for and dismiss the sign-in modal
               const dismissButtonSelector = 'button[data-tracking-control-name=\"public_profile_contextual-sign-in-modal_modal_dismiss\"]';
@@ -55,9 +67,11 @@ jobs:
 
               // Scrape the name's CSS selector
               const selector = await page.evaluate(() => {
-                const nameElement = document.querySelector('h1') || 
-                              document.querySelector('.text-heading-xlarge') ||
-                              document.querySelector('[data-test-id=\"profile-header-name\"]');
+                // Look for an h1 containing 'Satya Nadella'
+                const nameElement = Array.from(document.querySelectorAll('h1')).find(el => el.textContent.includes('Satya Nadella')) ||
+                                   document.querySelector('.pv-top-card--list h1') || // Common LinkedIn profile name container
+                                   document.querySelector('.text-heading-xlarge') ||
+                                   document.querySelector('[data-test-id=\"profile-header-name\"]');
                 if (!nameElement) return 'Selector not found';
                 const classList = nameElement.className.split(' ').map(cls => '.' + cls).join('');
                 return classList || 'No classes found';
