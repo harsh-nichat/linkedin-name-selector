@@ -23,7 +23,10 @@ jobs:
         run: npm install puppeteer@latest
 
       - name: Log Puppeteer Version
-        run: node -e "console.log('Puppeteer version:', require('puppeteer').version())" >> output.log 2>&1
+        run: |
+          # Log the installed Puppeteer version using npm list
+          npm list puppeteer --depth=0 >> output.log 2>&1 || echo "Failed to log Puppeteer version" >> output.log
+        continue-on-error: true # Allow the workflow to continue even if this step fails
 
       - name: Scrape LinkedIn Profile
         id: scrape_step
