@@ -2,3 +2,4 @@ Fri Apr  4 10:18:14 UTC 2025 - Selector: page.waitForTimeout is not a function
 Fri Apr  4 10:28:31 UTC 2025 - Selector: .authwall-join-form__title
 Fri Apr  4 10:46:18 UTC 2025 - Selector: .authwall-join-form--title.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0
 Fri Apr  4 10:58:51 UTC 2025 - Selector: .authwall-join-form--title.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0
+Fri Apr  4 11:07:07 UTC 2025 - Selector: .authwall-join-form--title.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0Selectornotfound

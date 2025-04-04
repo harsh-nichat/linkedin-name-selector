@@ -88,3 +88,37 @@ Page content snippet after dismiss:
     <nav class="nav pt-1.5 pb-2 flex items-center justify-between relative flex-nowrap babymamabear:py-1.5
 Latest selector: .top-card-layout__title.font-sans.text-lg.papabear:text-xl.font-bold.leading-open.text-color-text.mb-0
 Debug: SELECTOR set to .authwall-join-form--title.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0
+linkedin-name-selector@ /home/runner/work/linkedin-name-selector/linkedin-name-selector
+└── puppeteer@24.6.0
+
+Page title: Sign Up | LinkedIn
+Page content snippet: 
+<!----><!----><!---->
+        
+      
+    
+    
+    
+    <form class="google-auth" action="/uas/login-submit" method="post">
+      <input name="loginCsrfParam" value="06061cd6-820b-4c29-8be0-f2ed4ee74337" type="hidden">
+        <input name="session_redirect" value="/authwall" type="hidden">
+      <input name="trk" value="seo-authwall-base_google-one-tap-submit" type="hidden">
+        <div class="google-one-tap__module hidden fixed flex flex-col items-center top-[20px] right-[20px] z-[9999]">
+  
+Dismiss button not found or click failed: Waiting for selector `button[data-tracking-control-name="public_profile_contextual-sign-in-modal_modal_dismiss"]` failed: Waiting failed: 5000ms exceeded
+Page title after dismiss: Sign Up | LinkedIn
+Page content snippet after dismiss: 
+<!----><!----><!---->
+        
+      
+    
+    
+    
+    <form class="google-auth" action="/uas/login-submit" method="post">
+      <input name="loginCsrfParam" value="06061cd6-820b-4c29-8be0-f2ed4ee74337" type="hidden">
+        <input name="session_redirect" value="/authwall" type="hidden">
+      <input name="trk" value="seo-authwall-base_google-one-tap-submit" type="hidden">
+        <div class="google-one-tap__module hidden fixed flex flex-col items-center top-[20px] right-[20px] z-[9999]">
+  
+Latest selector: Selector not found
+Debug: SELECTOR set to .authwall-join-form--title.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0Selectornotfound
