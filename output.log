@@ -176,3 +176,57 @@ Page content snippet after dismiss:
     <nav class="nav pt-1.5 pb-2 flex items-center justify-between relative flex-nowrap babymamabear:py-1.5
 Latest selector: .top-card-layout__title.font-sans.text-lg.papabear:text-xl.font-bold.leading-open.text-color-text.mb-0
 Debug: SELECTOR set to .authwall-join-form--title.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0Selectornotfound.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0
+linkedin-name-selector@ /home/runner/work/linkedin-name-selector/linkedin-name-selector
+└── puppeteer@24.6.0
+
+Page title: Satya Nadella - Chairman and CEO - Microsoft | LinkedIn
+Page content snippet: 
+<!----><!----><!---->
+        
+        
+<!---->
+    
+      
+    
+
+    <a href="#main-content" class="skip-link btn-md btn-primary absolute z-11 -top-[100vh] focus:top-0" aria-hidden="true">
+      Skip to main content
+    </a>
+  
+    <header class="header base-detail-page__header px-mobile-container-padding bg-color-background-container global-alert-offset sticky-header" aria-hidden="true">
+      
+        
+
+    
+    
+    
+    
+
+    <nav class="nav pt-1.5 pb-2 flex items-center justify-between re
+Dismiss button found, clicking...
+Page title after dismiss: Satya Nadella - Chairman and CEO - Microsoft | LinkedIn
+Page content snippet after dismiss: 
+<!----><!----><!---->
+        
+        
+<!---->
+    
+      
+    
+
+    <a href="#main-content" class="skip-link btn-md btn-primary absolute z-11 -top-[100vh] focus:top-0">
+      Skip to main content
+    </a>
+  
+    <header class="header base-detail-page__header px-mobile-container-padding bg-color-background-container global-alert-offset sticky-header">
+      
+        
+
+    
+    
+    
+    
+
+    <nav class="nav pt-1.5 pb-2 flex items-center justify-between relative flex-nowrap babymamabear:py-1.5
+Latest selector: .top-card-layout__title.font-sans.text-lg.papabear:text-xl.font-bold.leading-open.text-color-text.mb-0
+Debug: SELECTOR set to .authwall-join-form--title.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0Selectornotfound.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0.top-card-layout--title.font-sans.text-lg.papabear-text-xl.font-bold.leading-open.text-color-text.mb-0
