@@ -85,24 +85,31 @@ jobs:
 
               // Scrape the name's CSS selector
               const selector = await page.evaluate(() => {
-                // More specific selector targeting h1 elements first
-                const nameElement = document.querySelector('h1.inline.t-24.v-align-middle.break-words');
-                
+                let nameElement = document.querySelector('h1.inline.t-24.v-align-middle.break-words');
+
                 if (!nameElement || !nameElement.textContent.includes('Satya Nadella')) {
-                  // Fallback to broader search if specific selector fails
-                  const fallbackElement = Array.from(document.querySelectorAll('h1')).find(el => 
-                    el.textContent && el.textContent.trim() === 'Satya Nadella'
-                  );
-                  if (!fallbackElement) return 'Selector not found';
-                  return fallbackElement.className || 'No classes found';
+                  // Try a more robust fallback: query all h1 elements and filter by text content
+                  const h1Elements = Array.from(document.querySelectorAll('h1'));
+                  nameElement = h1Elements.find(el => el.textContent?.trim() === 'Satya Nadella');
+
+                  if (!nameElement) {
+                    console.log('Satya Nadella element not found.');
+                    return 'Selector not found';
+                  }
                 }
-                
-                // Return only the dynamic part of the class name
-                const dynamicClass = nameElement.className.split(' ').find(cls => 
-                  cls.length > 20 && /^[a-zA-Z0-9]+$/.test(cls)
-                );
-                
-                return dynamicClass || 'No dynamic class found';
+
+                // Extract the dynamic class name
+                const dynamicClass = nameElement.className
+                  .split(' ')
+                  .find(cls => cls.length > 20 && /^[a-zA-Z0-9]+$/.test(cls));
+
+                if (!dynamicClass) {
+                  console.log('Dynamic class not found on the Satya Nadella element.');
+                  return 'No dynamic class found';
+                }
+
+                console.log('Dynamic class found:', dynamicClass);
+                return dynamicClass;
               });
               console.log('Latest selector:', selector);
               process.env.SELECTOR = selector;
