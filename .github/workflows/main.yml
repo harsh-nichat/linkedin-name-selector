@@ -32,6 +32,8 @@ jobs:
         run: |
           # Ensure output.log is created even if empty
           touch output.log
+          # Create a directory for screenshots
+          mkdir -p screenshots
           node -e "
           const puppeteer = require('puppeteer');
           const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -46,6 +48,10 @@ jobs:
             try {
               await page.goto('https://www.linkedin.com/in/satyanadella', { waitUntil: 'domcontentloaded', timeout: 60000 });
               await delay(2000);
+
+              // Take screenshot after initial load
+              await page.screenshot({ path: 'screenshots/initial_load.png', fullPage: true });
+              console.log('Initial load screenshot saved as screenshots/initial_load.png');
 
               // Log the page title for debugging
               const pageTitle = await page.title();
@@ -62,6 +68,9 @@ jobs:
                 console.log('Dismiss button found, clicking...');
                 await page.click(dismissButtonSelector);
                 await delay(3000); // Wait longer for the profile page to load
+                // Take screenshot after dismissing the modal
+                await page.screenshot({ path: 'screenshots/after_dismiss.png', fullPage: true });
+                console.log('After dismiss screenshot saved as screenshots/after_dismiss.png');
               } catch (error) {
                 console.log('Dismiss button not found or click failed:', error.message);
               }
@@ -108,22 +117,27 @@ jobs:
           echo "SELECTOR=$SANITIZED_SELECTOR" >> $GITHUB_ENV
           echo "Debug: SELECTOR set to $SANITIZED_SELECTOR" >> output.log
 
-      - name: Send Selector to App
-        run: |
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -d "{\"selector\": \"${{ env.SELECTOR }}\"}" \
-            ${{ secrets.APP_ENDPOINT }}
-        continue-on-error: true
-
       - name: Commit result
         run: |
           # Ensure files exist
           touch output.log
           touch result.txt
+          # Commit screenshots if they exist
+          if [ -d "screenshots" ]; then
+            git add screenshots/*.png
+          fi
           echo "$(date -u) - Selector: ${{ env.SELECTOR }}" >> result.txt
           git config user.name 'GitHub Action'
           git config user.email 'action@github.com'
           git add result.txt output.log
-          git commit -m "Update selector - $(date -u)" || echo "No changes to commit"
+          git commit -m "Update selector and screenshots - $(date -u)" || echo "No changes to commit"
           git push
+
+      - name: Post Set up Node.js
+        run: echo "Node.js setup complete"
+
+      - name: Post Checkout code
+        run: echo "Checkout complete"
+
+      - name: Complete job
+        run: echo "Job completed"
