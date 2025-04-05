@@ -110,7 +110,9 @@ jobs:
                 return `h1.${dynamicClass}`;
               });
               console.log('Latest selector:', selector);
-              process.env.SELECTOR = selector;
+
+              // Escape the selector value for safe use in the shell
+              process.env.SELECTOR = JSON.stringify(selector);
             } catch (error) {
               console.log('Error:', error.message);
               process.env.SELECTOR = 'Failed to scrape - possible CAPTCHA or block: ' + error.message;
