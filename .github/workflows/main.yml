@@ -85,12 +85,12 @@ jobs:
 
               // Scrape the name's CSS selector
               const selector = await page.evaluate(() => {
-                const nameElement = document.querySelector('h1[class=\"fcvdtLCCLqHKzBmnEEKRFrlgNaDyIzA\"]') ||
-                                   Array.from(document.querySelectorAll('h1')).find(el => el.textContent.includes('Satya Nadella')) ||
-                                   document.querySelector('.pv-top-card--list h1') ||
-                                   document.querySelector('.text-heading-xlarge') ||
-                                   document.querySelector('[data-test-id=\"profile-header-name\"]');
+                // Find the element containing 'Satya Nadella'
+                const nameElement = Array.from(document.querySelectorAll('h1, h2, h3, div, span')).find(el => 
+                  el.textContent && el.textContent.includes('Satya Nadella')
+                );
                 if (!nameElement) return 'Selector not found';
+                // Generate a relative CSS selector based on the class name
                 const classList = nameElement.className.split(' ').map(cls => '.' + cls).join('');
                 return classList || 'No classes found';
               });
