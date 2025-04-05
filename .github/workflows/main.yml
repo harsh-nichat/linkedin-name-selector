@@ -85,14 +85,24 @@ jobs:
 
               // Scrape the name's CSS selector
               const selector = await page.evaluate(() => {
-                // Find the element containing 'Satya Nadella'
-                const nameElement = Array.from(document.querySelectorAll('h1, h2, h3, div, span')).find(el => 
-                  el.textContent && el.textContent.includes('Satya Nadella')
+                // More specific selector targeting h1 elements first
+                const nameElement = document.querySelector('h1.inline.t-24.v-align-middle.break-words');
+                
+                if (!nameElement || !nameElement.textContent.includes('Satya Nadella')) {
+                  // Fallback to broader search if specific selector fails
+                  const fallbackElement = Array.from(document.querySelectorAll('h1')).find(el => 
+                    el.textContent && el.textContent.trim() === 'Satya Nadella'
+                  );
+                  if (!fallbackElement) return 'Selector not found';
+                  return fallbackElement.className || 'No classes found';
+                }
+                
+                // Return only the dynamic part of the class name
+                const dynamicClass = nameElement.className.split(' ').find(cls => 
+                  cls.length > 20 && /^[a-zA-Z0-9]+$/.test(cls)
                 );
-                if (!nameElement) return 'Selector not found';
-                // Generate a relative CSS selector based on the class name
-                const classList = nameElement.className.split(' ').map(cls => '.' + cls).join('');
-                return classList || 'No classes found';
+                
+                return dynamicClass || 'No dynamic class found';
               });
               console.log('Latest selector:', selector);
               process.env.SELECTOR = selector;
