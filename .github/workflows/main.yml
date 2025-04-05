@@ -85,20 +85,18 @@ jobs:
 
               // Scrape the name's CSS selector
               const selector = await page.evaluate(() => {
-                let nameElement = document.querySelector('h1.inline.t-24.v-align-middle.break-words');
+                // Find all h1 elements
+                const h1Elements = Array.from(document.querySelectorAll('h1'));
 
-                if (!nameElement || !nameElement.textContent.includes('Satya Nadella')) {
-                  // Try a more robust fallback: query all h1 elements and filter by text content
-                  const h1Elements = Array.from(document.querySelectorAll('h1'));
-                  nameElement = h1Elements.find(el => el.textContent?.trim() === 'Satya Nadella');
+                // Locate the h1 element containing "Satya Nadella"
+                const nameElement = h1Elements.find(el => el.textContent?.trim() === 'Satya Nadella');
 
-                  if (!nameElement) {
-                    console.log('Satya Nadella element not found.');
-                    return 'Selector not found';
-                  }
+                if (!nameElement) {
+                  console.log('Satya Nadella element not found.');
+                  return 'Selector not found';
                 }
 
-                // Extract the dynamic class name
+                // Extract the dynamic class name (long alphanumeric class)
                 const dynamicClass = nameElement.className
                   .split(' ')
                   .find(cls => cls.length > 20 && /^[a-zA-Z0-9]+$/.test(cls));
@@ -109,7 +107,7 @@ jobs:
                 }
 
                 console.log('Dynamic class found:', dynamicClass);
-                return dynamicClass;
+                return `h1.${dynamicClass}`;
               });
               console.log('Latest selector:', selector);
               process.env.SELECTOR = selector;
